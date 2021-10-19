@@ -1,23 +1,18 @@
 import pygame
 import webbrowser
 import time
-from level import Level1
-from level import Level2
-from level import Level3
-from level import Level4
-from level import Level5
-from level import Menu
+from level import *
 from fliptxt import FlipTxt
 from pygame import mixer
 from platform import Platform
 from secretplatform import SecretPlatform
-from icecream import IceCream
+from icecream import *
 from evildrippy import EvilDrippy
 from frozendrip import FrozenDrip
+from heart import Heart
 from spritesheet import SpriteSheet
 
 shieldon = False
-
 def shield(drippyimg):
     level.player.walkingright = []
     level.player.walkingleft = []
@@ -41,7 +36,8 @@ def shield(drippyimg):
 
 screenwidth = 800
 screenheight = 600
-lives = 2
+lives = 3
+maxlives = 3
 icecreams = 0
 dmgsound = mixer.Sound("dmg.mp3")
 collect = mixer.Sound("icecreamsound.mp3")
@@ -56,15 +52,24 @@ screen = pygame.display.set_mode([screenwidth, screenheight])
 pygame.display.set_caption("random platformer")
 clock = pygame.time.Clock()
 
-levels = [Menu(), Level1(), Level2(), Level3(), Level4(), Level5()]
-levelnumber = 4
+levels = [Menu(), Level1(), Level2(), Level3(), Level4(), Level5(), GameOverMenu()]
+levelnumber = 0
 
 playing = True
 ehe = False
-
+hasDied = False
+gameover = GameOverMenu()
 while playing == True:
-    level = levels[levelnumber]
+    level = levels[levelnumber] if lives != 0 else gameover
 
+    def update_hearts(lives): 
+        Heart.numberOfHearts = 0
+        hearts = [Heart(True) if i < lives else Heart(False) for i in range(maxlives)]
+        for heart in hearts: 
+            level.platformlist.add(heart)
+        return hearts
+
+    HEARTS = update_hearts(lives)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             playing = False   
@@ -82,8 +87,15 @@ while playing == True:
                 level.player.jump(level.platformlist) 
                 if levelnumber >= 4 and (isinstance(level, Level4) or isinstance(level, Level5)): #we can fix this
                     level.evildrippy.jump(level.platformlist)
-            if event.key == ord('r'):
+            if event.key == ord('r') and level != gameover:
+                lives = maxlives
+                update_hearts(lives)
                 level.restart()
+
+        if lives == 0 and not hasDied: 
+            prev = level
+            gameover = GameOverMenu()
+            hasDied = True
 
         if event.type == pygame.KEYUP:
             level.player.stop()
@@ -136,6 +148,19 @@ while playing == True:
             # levelnumber += 1
             # icecreams = 0
             levelup.play()
+        
+        elif isinstance(icecream, Sundae) and icecream.option == 'quit':
+            exit()
+        elif isinstance(icecream, Sundae):
+            print("you restarted")
+            levels = [Menu(), Level1(), Level2(), Level3(), Level4(), Level5(), GameOverMenu()]
+            levelnumber = 0
+            level = levels[levelnumber]
+            lives = 3
+            HEARTS = update_hearts(lives)
+            level.restart()
+            icecreams = 0
+            levelup.play()
 
     hitlist = pygame.sprite.spritecollide(level.player, level.triggerlist, True)
     
@@ -177,11 +202,12 @@ while playing == True:
     for rock in hitlist:
         dmgsound.play()
         lives -= 1
+        update_hearts(lives)
         print("you have " + str(lives) + " lives left")
         print("o no u hit a rock")
-    if lives == 0:
-        pygame.time.wait(1000)
-        break
+    # if lives == 0:
+    #     prev = level
+    #     level = GameOverMenu()
 
     hitlist = pygame.sprite.spritecollide(level.player, level.moblist, True)
     for evildrippy in hitlist:
@@ -189,8 +215,13 @@ while playing == True:
             driphit.play()
             print("oh no! you hit evil drippy :(")
             print("you have " + str(lives) + " lives left")
-            lives -= 2
+            temp = lives
+            lives = maxlives - lives #set lives = 0
+            update_hearts(lives)
+            lives = temp #Reset lives back to max, bc we restart the level
+            update_hearts(lives)
             level.restart()
+        
         elif shieldon == True:
             zap.play()
             # evildriprect = level.evildrippy.get_rect()
@@ -199,9 +230,10 @@ while playing == True:
             level.platformlist.add(frozendrip)
             shieldon = False
             shield("Drippywalksmall.png")
-    if lives == 0:
-        pygame.time.wait(1000)
-        break
+    # if lives == 0:
+    #     prev = level
+    #     level = GameOverMenu()
+
 
     pygame.display.update()
     level.update()

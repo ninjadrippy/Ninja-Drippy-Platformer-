@@ -1,5 +1,6 @@
 import pygame
 from icecream import IceCream
+from icecream import Sundae
 from player import Player
 from platform import Platform
 from obstacle import Obstacle
@@ -225,3 +226,19 @@ class Menu(Level):
         pygame.display.update()
 
         # pygame_gui library
+
+class GameOverMenu(Level):
+    def __init__(self, prev=0):
+        super().__init__()
+
+        self.player = Player(360, 480, self.platformlist)
+        self.spritelist.add(self.player)
+
+        restart = Sundae(200, 480, 'restart')
+        leave = Sundae(520, 480, 'quit')
+        self.itemlist.add(restart)
+        self.itemlist.add(leave)
+
+        title = font.render("GAME OVER", 1, (255, 255, 255))
+        screen.blit(title, (0, 0))
+        pygame.display.update()
