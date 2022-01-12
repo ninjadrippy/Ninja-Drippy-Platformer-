@@ -1,6 +1,7 @@
 import pygame
 import webbrowser
 import time
+import os
 from level import *
 from fliptxt import FlipTxt
 from pygame import mixer
@@ -11,6 +12,8 @@ from evildrippy import EvilDrippy
 from frozendrip import FrozenDrip
 from heart import Heart
 from spritesheet import SpriteSheet
+import asyncio
+
 
 shieldon = False
 def shield(drippyimg):
@@ -39,12 +42,22 @@ screenheight = 600
 lives = 3
 maxlives = 3
 icecreams = 0
+
+pygame.mixer.init()
+
+main_channel = pygame.mixer.Channel(0)
+main_channel.set_volume(0.2)
+main_channel.play(pygame.mixer.Sound("music.mp3"), loops=-1, fade_ms=5000)
+
+
 dmgsound = mixer.Sound("dmg.mp3")
 collect = mixer.Sound("icecreamsound.mp3")
+collect.set_volume(0.2)
 levelup = mixer.Sound("levelup.mp3")
 specialcrem = mixer.Sound("magic.mp3")
 driphit = mixer.Sound("drip.mp3")
 zap = mixer.Sound("zap.mp3")
+
 pygame.init()
 
 font = pygame.font.SysFont("comicsansms", 30)
@@ -52,15 +65,15 @@ screen = pygame.display.set_mode([screenwidth, screenheight])
 pygame.display.set_caption("random platformer")
 clock = pygame.time.Clock()
 
-levels = [Menu(), Level1(), Level2(), Level3(), Level4(), Level5(), GameOverMenu()]
-levelnumber = 0
+levels = [Menu(), Level1(), Level2(), Level3(), Level4(), Level5(), Win(), GameOverMenu()]
+levelnumber = 6
 
 playing = True
 ehe = False
 hasDied = False
-gameover = GameOverMenu()
+
 while playing == True:
-    level = levels[levelnumber] if lives != 0 else gameover
+    level = levels[levelnumber] if lives != 0 else levels[-1]
 
     def update_hearts(lives): 
         Heart.numberOfHearts = 0
@@ -87,14 +100,14 @@ while playing == True:
                 level.player.jump(level.platformlist) 
                 if levelnumber >= 4 and (isinstance(level, Level4) or isinstance(level, Level5)): #we can fix this
                     level.evildrippy.jump(level.platformlist)
-            if event.key == ord('r') and level != gameover:
+            if event.key == ord('r') and level != levels[-1]:
                 lives = maxlives
                 update_hearts(lives)
                 level.restart()
 
         if lives == 0 and not hasDied: 
             prev = level
-            gameover = GameOverMenu()
+            levels[-1] = GameOverMenu()
             hasDied = True
 
         if event.type == pygame.KEYUP:
@@ -110,12 +123,13 @@ while playing == True:
                 level.evildrippy.goleft()
             
     # Game Logic
-
     hitlist = pygame.sprite.spritecollide(level.player, level.itemlist, True)
     for icecream in hitlist:
+
         collect.play()
         print("u got ice cream!")
         icecreams += 1
+
         if icecreams >= 1 and levelnumber == 0:
             levelnumber += 1
             icecreams = 0
@@ -144,14 +158,28 @@ while playing == True:
             icecreams = 0
             levelup.play()
         
-        elif icecreams == 2 and levelnumber == 5:
-            # levelnumber += 1
-            # icecreams = 0
+        elif icecreams == 2 and levelnumber == 5: #After this level is done we win
+            levelnumber += 1
+            icecreams = 0
             levelup.play()
-        
-        elif isinstance(icecream, Sundae) and icecream.option == 'quit':
-            exit()
-        elif isinstance(icecream, Sundae):
+
+            main_channel.pause()
+            end_channel = pygame.mixer.Channel(1)
+            end_channel.set_volume(0.2)
+            end_channel.play(pygame.mixer.Sound("victory_music_again.mp3"), loops=-1, fade_ms=5000)
+
+        if icecreams == 30 and isinstance(level, Win):
+            levelup.play()
+            level.portal.start("opening")
+            level.portalSpawned = True
+            print("The portal should be opening!")
+            print(hitlist)
+
+        if isinstance(level, Win) and level.portalSpawned == True and isinstance(icecream, Portal):
+            levelup.play()
+            levelnumber += 1
+
+        if isinstance(icecream, Sundae) and icecream.option != 'quit':
             print("you restarted")
             levels = [Menu(), Level1(), Level2(), Level3(), Level4(), Level5(), GameOverMenu()]
             levelnumber = 0
@@ -162,12 +190,17 @@ while playing == True:
             icecreams = 0
             levelup.play()
 
+        elif isinstance(icecream, Sundae):
+            print("you quit.")
+            exit()
+
     hitlist = pygame.sprite.spritecollide(level.player, level.triggerlist, True)
     
     for icecreamtrig in hitlist:
         ehe = True
         specialcrem.play()
         if levelnumber == 2:
+            main_channel.pause()
             webbrowser.open("https://youtu.be/O91DT1pR1ew")
             jumpplatform = Platform(130, 20, 600, 250)
             level.platformlist.add(jumpplatform)
@@ -179,9 +212,14 @@ while playing == True:
         if levelnumber == 5:
             # t_end = time.time() + 10
             # while time.time() < t_end:
+                main_channel.unpause()
                 shield("drippyshield.png")
                 shieldon = True
             # shield("Drippywalksmall.png")
+        if levelnumber == 6:
+            main_channel.pause()
+
+            webbrowser.open("https://www.youtube.com/watch?v=oySU9DNaemU")
     
     if levelnumber >= 4 and (isinstance(level, Level4) or isinstance(level, Level5)):
 
@@ -234,11 +272,11 @@ while playing == True:
     #     prev = level
     #     level = GameOverMenu()
 
-
     pygame.display.update()
     level.update()
     screen.fill((0, 0, 0))
     level.draw(screen)
+    
     if levelnumber == 0:
         title = font.render("arrows to move, space to jump", 1, (189, 209, 242))
         screen.blit(title, (screenwidth / 2 - title.get_width() / 2, screenheight / 6))
@@ -255,6 +293,18 @@ while playing == True:
     if levelnumber == 3:
         fliptxt = FlipTxt(460, 50)
         level.platformlist.add(fliptxt)
+
+    if levelnumber == 6: 
+        level.portal.update()
+        level.portal.draw(screen)
+
+        if level.portal.collide(level.player) and level.portalSpawned == True:
+            print("idk why this won't work")
+            level.portal.start('closing')
+            if level.portal.stage == 'done':
+                levelup.play()
+                levelnumber += 1
+
     clock.tick(60)
     pygame.display.flip()
 

@@ -1,4 +1,5 @@
 import pygame
+import random
 from icecream import IceCream
 from icecream import Sundae
 from player import Player
@@ -8,12 +9,18 @@ from icecreamtrig import IceCreamTrig
 from secretplatform import SecretPlatform
 from evildrippy import EvilDrippy
 from evilobstac import Evilobstac
+from portal import Portal
+import random
 
 pygame.init()
 screenwidth = 800
 screenheight = 600
 screen = pygame.display.set_mode([screenwidth, screenheight])
 font = pygame.font.SysFont("comicsansms", 30)
+white = (255, 255, 255)
+green = (0, 255, 0)
+blue = (0, 0, 128)
+
 
 class Level:
     def __init__(self):
@@ -23,6 +30,10 @@ class Level:
         self.spritelist = pygame.sprite.Group()
         self.triggerlist = pygame.sprite.Group()
         self.moblist = pygame.sprite.Group()
+        self.textRender = font.render('', True, green, blue) 
+        self.textRect = self.textRender.get_rect()
+        # set the center of the rectangular object.
+        self.textRect.center = (screenwidth // 2, screenheight // 2)
         # self.textlist = pygame.sprite.Group()
 
         # Create outer wall/screen boundaries
@@ -50,6 +61,7 @@ class Level:
         self.spritelist.draw(screen)
         self.triggerlist.draw(screen)
         self.moblist.draw(screen)
+        screen.blit(self.textRender, self.textRect)
 
     def restart(self):
         self = self.__init__()
@@ -199,11 +211,30 @@ class Level5(Level):
         icecream = IceCream(200, 100)
         self.itemlist.add(icecream)
 
+        Rock = Obstacle(300, 120)
+        self.enemylist.add(Rock)
+
         jumpplatform = Platform(20, 500, 100, 0)
         self.platformlist.add(jumpplatform)
 
-        mutanticecream = IceCreamTrig(300, 500)
+        mutanticecream = IceCreamTrig(600, 500)
         self.triggerlist.add(mutanticecream)
+
+        jumpplatform = Platform(20, 50, 500, 500)
+        self.platformlist.add(jumpplatform)
+
+        Rock = Obstacle(410, 470)
+        self.enemylist.add(Rock)
+
+        Rock = Obstacle(370, 470)
+        self.enemylist.add(Rock)
+
+        Rock = Obstacle(300, 470)
+        self.enemylist.add(Rock)
+        Rock = Obstacle(250, 470)
+        self.enemylist.add(Rock)
+        Rock = Obstacle(200, 470)
+        self.enemylist.add(Rock)
 
         jumpplatform = Platform(50, 20, 420, 280)
         self.platformlist.add(jumpplatform)
@@ -242,3 +273,28 @@ class GameOverMenu(Level):
         title = font.render("GAME OVER", 1, (255, 255, 255))
         screen.blit(title, (0, 0))
         pygame.display.update()
+
+class Win(Level):
+    def __init__(self):
+        super().__init__()
+        self.player = Player(50, 50, self.platformlist)
+        self.portal = Portal(2 * screenwidth // 3 + 50, 2 * screenheight // 3 - 100)
+        self.portalSpawned = False
+        self.spritelist.add(self.player)
+        self.itemlist.add(self.portal)
+        self.textRender = font.render('CONGRATULATIONS!', True, (200, 0, 100), (0, 0, 0)) 
+        self.textRect = self.textRender.get_rect()
+        # set the center of the rectangular object.
+        self.textRect.center = (screenwidth // 2, screenheight // 3)
+        
+        #random.randrange(start, end) 
+        # This big part => (under) says make a list of pairs of coordinates, where each coordinate is a random number between 10 and whatever the other part is
+        # things to maybe change:  screenwidth - 10
+        # 
+        for x,y in [(random.randrange(30, 2 * screenwidth // 3 + 30),random.randrange(screenwidth//2 , screenheight - 60)) for i in range(30)]:
+            icecream = IceCream(x, y)
+            self.itemlist.add(icecream)
+
+        mutanticecream = IceCreamTrig(480, 430)
+        self.triggerlist.add(mutanticecream)
+        
